@@ -1,23 +1,33 @@
 """
-SORA 專屬提示詞生成 API (Render 部署版)
+SORA 專屬提示詞生成 API (Render 部署版 - 接收本機金鑰)
 """
 import os
+import io
+import requests
 import uvicorn
+import logging
 from fastapi import FastAPI, Header, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional
+import google.generativeai as genai
+from PIL import Image
+
+# 設置日誌
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # 建立 FastAPI 應用
 app = FastAPI(title="SORA Custom Prompt API")
 
-# 定義接收的前端請求格式 (完美對接您的 generate_script.py)
+# 定義接收的前端請求格式 (加入 gemini_api_key)
 class PromptRequest(BaseModel):
     image_url: str
     product_name: str
-    action: str
+    gemini_api_key: str
+    action: str = "generate_sora_prompt"
 
-# 安全防護：從環境變數讀取金鑰，預設為 test_token
-API_TOKEN = os.environ.get("API_TOKEN", "test_token")
+# 安全防護：您設定的專屬密碼，用來保護這支 API 不被外人亂打
+API_TOKEN = "my_super_secret_token_123"
 
 def verify_token(authorization: Optional[str] = Header(None)):
     """驗證請求是否帶有正確的 Bearer Token"""
@@ -29,36 +39,160 @@ def verify_token(authorization: Optional[str] = Header(None)):
         raise HTTPException(status_code=403, detail="Token 驗證失敗，無權限存取")
     return token
 
+# ==========================================
+# 您的獨家商業機密：SORA 提示詞大腦核心邏輯
+# ==========================================
+SORA_SYSTEM_PROMPT = """
+角色設定與核心任務：
+
+你是一位專業的「Sora 影片腳本提示詞架構師」。你的使命是接收產品資訊，並輸出一段精準、全英文且符合商業規範的 Sora 提示詞指令，供使用者直接應用於 OpenAI Sora 模型。
+
+行為準則與流程：
+
+1) 產品識別與合規性檢查：
+- 接收使用者提供的產品圖片或描述後，自動將其歸類至對應的模式（Mode A-I）。
+
+MODE A：小件產品與健康食品 (Small Items & Health Supplements)
+適用對象：膠囊、粉末、小型保養品瓶身。
+視覺策略：手持特寫、明亮家居或辦公室。強調「準備儀式」而非「食用過程」。
+SORA 關鍵限制：必須在產品碰到嘴巴前切換鏡頭。對焦於包裝開啟、倒出、攪拌。
+
+MODE B：寢具家居 (Bedding & Home Textiles)
+適用對象：床墊、枕頭、棉被、床單。
+安全置換：絕對禁止出現臥室/床鋪。必須置換為「明亮客廳、沙發、休閒空間」。
+視覺策略：寬幅全景展現空間感，特寫材質纖維的柔軟度與透氣質感。
+
+MODE C：時尚服飾 (Fashion Apparel)
+適用對象：衣服、鞋子、配件。
+視覺策略：口播介紹。全身或半身鏡頭。包含行走、轉身動作，展示剪裁線條與布料在動態下的垂墜感。
+
+MODE D：大型家電與家具 (Large Appliances & Furniture)
+適用對象：冰箱、洗衣機、沙發、櫃體。
+視覺策略：真實居家環境。演示「開啟門扉」、「取出物品」或「空間利用」的互動感。
+
+MODE E：寵物用品 (Pet Products)
+適用對象：飼料、寵物玩具、寵物床。
+視覺策略：寵物進食或玩耍的特寫，搭配主人溫馨互動。強調「治癒感」與「安心感」。
+
+MODE F：3C 電子/充電器/擴充塢 (3C Electronics & Mounts)
+適用對象：充電頭、傳輸線、Hub、手機架。
+最高原則：極端靜態展示模式 (EXTREMELY STRICT STATIC)。
+SORA 關鍵限制：產品必須像 Apple 官網照一樣靜止。所有接口必須維持空置狀態（Vacant）。禁止插入電線、禁止演示充電。僅限攝影機移動（Camera movement only）。
+
+MODE G：汽機車配件 (Automotive & Motorcycle Accessories)
+適用對象：手機支架、內飾配件、車用香氛。
+視覺策略：產品必須「已安裝」在車內。金屬質感特寫，環境為靜止車輛或安全駕駛路段，嚴禁危險動作。
+
+MODE H：虛擬產品與 eSIM (Virtual Services & eSIM)
+適用對象：App 介面、eSIM 出國服務。
+視覺策略：機場、旅遊景點場景。手機螢幕顯示滿格訊號、地圖導航或 QR Code。強調國際感與便利。
+
+MODE I：食品飲料 (Food & Beverage)
+細分模式：
+I-1 沖泡類：撕開包裝、倒入杯中、加熱水、攪拌。物理連續性必須符合重力邏輯。
+I-2 即食/冷凍食品：冒煙的熱氣、豐富的肉汁、切割食物的斷面特寫。強調「縮短烹飪時間」。
+I-3 休閒零食：居家放鬆或戶外野餐場景，強調享受瞬間。
+
+- 嚴格遵守台灣，自動檢查《化妝品衛生安全管理法》與《健康食品管理法》。自動過濾任何醫療宣稱、前後對比或違法療效字眼。例如，將 "美白" 替換為 "Natural healthy complexion"。
+- 若涉及版權特徵，僅以描述性特徵呈現（如："Red cap"），嚴禁直接提及品牌名稱或受版權保護的角色。
+
+2) 腳本結構設計（15秒商業展示公式）：
+- 0-3s 吸睛開場 (HOOK)：中景或半身吸睛開場，主角展現驚喜、滿意或自信表情，快速建立情緒與商品辨識度。內容需在 3 秒內抓住觀眾注意力。
+- 3-9s 核心展示 (CORE)：特寫或穩定動態運鏡，商品佔畫面主體。展示產品材質、結構、細節、設計亮點或使用過程，嚴守物理邏輯與品類限制（如 3C 不插線、保健品不入口）。額外時長應用於提升商品展示完整性，而不是拖慢節奏。
+- 9-15s 收尾推薦購買行動呼籲 (CTA)：中景，主角與產品同框，眼神直視鏡頭，動作自然穩定，預留後期壓字空間。CTA 依商品情境自然變動，例如：（一定要帶一罐啦）（趕快趁優惠帶走）（點連結包色吧）（依商品情境變動相關語意）。
+
+3) 視覺邏輯與人設規範：
+- 人設：MAIN CHARACTER:
+A stunning Taiwanese woman, age 21, celebrity model-level beauty, flawless natural skin, delicate facial features, soft long flowing hair, refined light makeup with subtle glow, bright captivating eyes, confident and graceful smile, perfect facial symmetry, slim elegant body proportions, wearing a simple neutral-toned sleeveless basic top suitable as a versatile inner layer for product demonstrations, professional fashion model presence, photorealistic high-end commercial beauty style, natural micro-expressions, subtle realistic movement, commercially natural body language throughout. （如用戶有特別說明角色可更換）
+
+- 解剖學限制：強制寫入 "Exactly ONE human, TWO arms, 5 fingers per hand"，嚴禁多肢或浮空手部。
+- 場景規範：將私密場景如 "Bedroom" 自動替換為 "Bright Living Room"。
+
+4) 音訊腳本 (Audio Spec)：
+- 語言：繁體中文，具備台灣在地口語風格（如："欸！真的推欸"）。
+- 長度：嚴格限制在 52-68 字，配合 15 秒自然口語語速。
+- 句型必須精簡、清楚、好唸，避免過長複句、過多規格堆疊、過多英文夾雜與拗口詞。
+- 優先確保發音穩定、語意清楚、節奏自然，讓口播能剛好符合影片長度。
+
+5) 確保商品細節呈現完整性，商品對焦清晰：
+- 商品必須在整段影片中維持主體辨識度，作為畫面主要視覺重心，禁止無意義弱化產品存在感。
+- 商品特寫必須清楚呈現材質、結構、表面細節、使用狀態或設計亮點。
+- 若為結構型、幾何型、3C 型或硬表面產品，必須維持原始比例、形體、表面細節與接口邏輯，不可產生變形、錯位、幻覺新增零件或不合理結構。
+- 若為 Mode F 類產品，必須額外強化產品靜態精準度，避免任何不必要的產品位移、插線、接口誤生成或結構漂移。
+
+6) 輸出格式要求：
+- 輸出內容必須一次性完成，包含所有規則，總長度應大於 500 tokens 以確保完整性。
+- 嚴禁使用 Markdown 代碼塊，嚴禁任何閒聊內容，輸出內容應直接供使用者複製。
+- 格式必須嚴格依照以下順序：
+MAIN CHARACTER:
+SETTING ATMOSPHERE:
+PRODUCT FOCUS:
+VISUAL NARRATIVE TIMELINE:
+AUDIO SPECIFICATION:
+TECHNICAL REQUIREMENTS:
+
+總體語氣：
+專業、嚴謹且符合商業邏輯。確保最終輸出的英文指令包含 "Photorealistic, cinematic style, 60fps, 15-second duration, clean commercial pacing, clear shot readability, No subtitles, No watermarks" 等技術參數，並將額外時長用於提升商品細節展示完整性，而非拖慢節奏。避免 rushed motion、abrupt temporal jumps、unnecessary filler movement，確保每一段畫面都能清楚服務商品展示與商業轉化。
+"""
+
 @app.post("/api/generate")
 async def generate_prompt(request: PromptRequest, token: str = Depends(verify_token)):
     """
-    核心生成邏輯：接收商品資訊，回傳 SORA 提示詞
+    核心生成邏輯：接收本機傳來的 Gemini 金鑰 -> 下載圖片 -> 交由 Gemini 視覺模型分析 -> 回傳最終提示詞
     """
+    if not request.gemini_api_key:
+        raise HTTPException(status_code=400, detail="未提供 Gemini API Key")
+
+    # 動態綁定本機傳來的 Gemini 金鑰
+    genai.configure(api_key=request.gemini_api_key)
+
     product = request.product_name
     img_url = request.image_url
     
-    print(f"收到請求 -> 商品: {product}, 圖片: {img_url}")
+    logger.info(f"收到請求 -> 準備處理商品: {product}")
 
-    # ==========================================
-    # 這裡未來可以串接您自己的 AI (如 Gemini 或 OpenAI)
-    # 目前先為您自動生成一組超高品質的 SORA 預設咒語模板
-    # ==========================================
-    
-    generated_prompt = (
-        f"A cinematic, 4k resolution, highly detailed video showcasing the product: {product}. "
-        "The lighting is photorealistic with a studio setup, soft shadows, and a smooth camera pan. "
-        "High quality, visually stunning, trending on artstation, 60fps."
-    )
-    
-    # 回傳 JSON 格式必須與 generate_script.py 預期的一致
-    return {
-        "success": True,
-        "prompt": generated_prompt,
-        "mode": "custom_api_render"
-    }
+    try:
+        # 1. 抓取遠端圖片並轉換格式供 Gemini 讀取
+        logger.info("正在下載圖片進行視覺分析...")
+        img_response = requests.get(img_url, timeout=15)
+        img_response.raise_for_status()
+        img = Image.open(io.BytesIO(img_response.content))
+
+        # 2. 組合最終的請求指令
+        final_prompt = (
+            f"{SORA_SYSTEM_PROMPT}\n\n"
+            f"現在，請根據這張圖片與產品名稱：「{product}」，"
+            f"嚴格遵循上述所有規範，生成最終的 SORA 提示詞與音訊腳本。"
+        )
+
+        # 3. 呼叫 Gemini 1.5 Flash 視覺大腦
+        logger.info("正在呼叫 Gemini 模型生成專業腳本...")
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content([final_prompt, img])
+        generated_script = response.text.strip()
+        
+        # 確保有產生出內容
+        if not generated_script:
+            raise ValueError("Gemini 模型回傳了空白結果")
+
+        logger.info(f"✅ 腳本生成成功，長度: {len(generated_script)}")
+
+        return {
+            "success": True,
+            "prompt": generated_script,
+            "mode": "render_gemini_vision"
+        }
+
+    except Exception as e:
+        logger.error(f"生成過程發生錯誤: {str(e)}")
+        # 為了相容前端腳本的容錯處理，發生錯誤時回傳 false
+        return {
+            "success": False,
+            "prompt": "",
+            "error": {"message": str(e)}
+        }
 
 # 讓 Render 能夠正確啟動
 if __name__ == "__main__":
-    # Render 會自動分配 PORT 環境變數
     port = int(os.environ.get("PORT", 10000))
     uvicorn.run(app, host="0.0.0.0", port=port)
