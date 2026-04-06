@@ -1,32 +1,30 @@
 """
-SORA 專屬提示詞生成 API (Render 部署版 - 接收本機金鑰)
+SORA 專屬提示詞生成 API (Render 部署版 - DEFAPI 通道專用)
 """
 import os
-import io
 import requests
+import base64
 import uvicorn
 import logging
 from fastapi import FastAPI, Header, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional
-import google.generativeai as genai
-from PIL import Image
 
 # 設置日誌
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # 建立 FastAPI 應用
-app = FastAPI(title="SORA Custom Prompt API")
+app = FastAPI(title="SORA Custom Prompt API - Defapi Version")
 
-# 定義接收的前端請求格式 (加入 gemini_api_key)
+# 定義接收的前端請求格式
 class PromptRequest(BaseModel):
     image_url: str
     product_name: str
-    gemini_api_key: str
+    gemini_api_key: str  # 這裡現在接收的是您的 DEFAPI 金鑰
     action: str = "generate_sora_prompt"
 
-# 安全防護：您設定的專屬密碼，用來保護這支 API 不被外人亂打
+# 安全防護：您設定的專屬密碼，保護這支 API 不被外人亂打
 API_TOKEN = "my_super_secret_token_123"
 
 def verify_token(authorization: Optional[str] = Header(None)):
@@ -138,13 +136,10 @@ TECHNICAL REQUIREMENTS:
 @app.post("/api/generate")
 async def generate_prompt(request: PromptRequest, token: str = Depends(verify_token)):
     """
-    核心生成邏輯：接收本機傳來的 Gemini 金鑰 -> 下載圖片 -> 交由 Gemini 視覺模型分析 -> 回傳最終提示詞
+    核心生成邏輯：透過 DEFAPI 呼叫 Gemini 3 Flash 模型進行視覺分析與腳本生成
     """
     if not request.gemini_api_key:
-        raise HTTPException(status_code=400, detail="未提供 Gemini API Key")
-
-    # 動態綁定本機傳來的 Gemini 金鑰
-    genai.configure(api_key=request.gemini_api_key)
+        raise HTTPException(status_code=400, detail="未提供 DEFAPI 金鑰")
 
     product = request.product_name
     img_url = request.image_url
@@ -152,11 +147,14 @@ async def generate_prompt(request: PromptRequest, token: str = Depends(verify_to
     logger.info(f"收到請求 -> 準備處理商品: {product}")
 
     try:
-        # 1. 抓取遠端圖片並轉換格式供 Gemini 讀取
-        logger.info("正在下載圖片進行視覺分析...")
+        # 1. 抓取遠端圖片並轉換為 Base64 格式 (OpenAI Vision API 需求)
+        logger.info("正在下載圖片並轉換為 Base64...")
         img_response = requests.get(img_url, timeout=15)
         img_response.raise_for_status()
-        img = Image.open(io.BytesIO(img_response.content))
+        
+        img_base64 = base64.b64encode(img_response.content).decode('utf-8')
+        mime_type = img_response.headers.get('Content-Type', 'image/jpeg')
+        image_data_url = f"data:{mime_type};base64,{img_base64}"
 
         # 2. 組合最終的請求指令
         final_prompt = (
@@ -165,22 +163,54 @@ async def generate_prompt(request: PromptRequest, token: str = Depends(verify_to
             f"嚴格遵循上述所有規範，生成最終的 SORA 提示詞與音訊腳本。"
         )
 
-        # 3. 呼叫 Gemini 1.5 Flash 視覺大腦
-        logger.info("正在呼叫 Gemini 模型生成專業腳本...")
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        response = model.generate_content([final_prompt, img])
-        generated_script = response.text.strip()
+        # 3. 呼叫 DEFAPI (相容 OpenAI 格式)
+        logger.info("正在呼叫 DEFAPI (google/gemini-3-flash) 生成專業腳本...")
+        defapi_url = "https://api.defapi.org/api/v1/chat/completions"
         
-        # 確保有產生出內容
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {request.gemini_api_key}"
+        }
+        
+        payload = {
+            "model": "google/gemini-3-flash",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text", 
+                            "text": final_prompt
+                        },
+                        {
+                            "type": "image_url", 
+                            "image_url": {
+                                "url": image_data_url
+                            }
+                        }
+                    ]
+                }
+            ],
+            "temperature": 0.7
+        }
+
+        api_response = requests.post(defapi_url, headers=headers, json=payload, timeout=60)
+        api_response.raise_for_status()
+        
+        result_json = api_response.json()
+        
+        # 解析 OpenAI 格式的回傳內容
+        generated_script = result_json['choices'][0]['message']['content'].strip()
+        
         if not generated_script:
-            raise ValueError("Gemini 模型回傳了空白結果")
+            raise ValueError("DEFAPI 模型回傳了空白結果")
 
         logger.info(f"✅ 腳本生成成功，長度: {len(generated_script)}")
 
         return {
             "success": True,
             "prompt": generated_script,
-            "mode": "render_gemini_vision"
+            "mode": "render_defapi_vision"
         }
 
     except Exception as e:
