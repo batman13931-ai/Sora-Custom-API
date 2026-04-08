@@ -222,6 +222,15 @@ async def generate_prompt(request: PromptRequest, token: str = Depends(verify_to
             "error": {"message": str(e)}
         }
 
+# ==========================================
+# 💡 防休眠專屬小側門 (不需要 Token 驗證)
+# ==========================================
+@app.get("/keep-alive")
+def keep_alive():
+    import time
+    now = time.time()
+    return {"status": "alive", "service": "prompt-brain", "time": now}
+
 # 讓 Render 能夠正確啟動
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
