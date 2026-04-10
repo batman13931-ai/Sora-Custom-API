@@ -131,7 +131,7 @@ SETTING ATMOSPHERE:
 PRODUCT FOCUS:
 VISUAL NARRATIVE TIMELINE:
 AUDIO SPECIFICATION:
-TECHNICAL REQUIREMENTS:
+TECHNICAL REQUIREMENTS:（此區塊必須強制寫入以下防護參數："Photorealistic, cinematic style, 60fps, 15-second duration, clean commercial pacing, clear shot readability. CRITICAL: NO SUBTITLES, NO ON-SCREEN TEXT, NO WATERMARKS, NO UI ELEMENTS, NO SCREEN GRAPHICS."）
 
 總體語氣：
 專業、嚴謹且符合商業邏輯。確保最終輸出的英文指令包含 "Photorealistic, cinematic style, 60fps, 15-second duration, clean commercial pacing, clear shot readability, No subtitles, No watermarks" 等技術參數，並將額外時長用於提升商品細節展示完整性，而非拖慢節奏。避免 rushed motion、abrupt temporal jumps、unnecessary filler movement，確保每一段畫面都能清楚服務商品展示與商業轉化。
