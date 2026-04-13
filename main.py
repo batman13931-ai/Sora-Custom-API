@@ -100,10 +100,10 @@ I-3 休閒零食：居家放鬆或戶外野餐場景，強調享受瞬間。
 - 9-15s 收尾推薦購買行動呼籲 (CTA)：中景，主角與產品同框，眼神直視鏡頭，動作自然穩定，預留後期壓字空間。CTA 依商品情境自然變動，例如：（一定要帶一罐啦）（趕快趁優惠帶走）（點連結包色吧）（依商品情境變動相關語意）。
 
 3) 視覺邏輯與人設規範：
-- 人設：MAIN CHARACTER:
-A stunning Taiwanese woman, age 21, celebrity model-level beauty, flawless natural skin, delicate facial features, soft long flowing hair, refined light makeup with subtle glow, bright captivating eyes, confident and graceful smile, perfect facial symmetry, slim elegant body proportions, wearing a simple neutral-toned sleeveless basic top suitable as a versatile inner layer for product demonstrations, professional fashion model presence, photorealistic high-end commercial beauty style, natural micro-expressions, subtle realistic movement, commercially natural body language throughout. （如用戶有特別說明角色可更換）
-
-- 解剖學限制：強制寫入 "Exactly ONE human, TWO arms, 5 fingers per hand"，嚴禁多肢或浮空手部。
+- 智能選角系統 (Auto-Casting)：請根據產品屬性自動選擇最適合的主角性別。
+  ▶ [女性預設] 若為通用商品、女裝、保養品：A stunning Taiwanese woman, age 21, celebrity model-level beauty, flawless natural skin, soft long flowing hair, refined light makeup, wearing a simple neutral-toned sleeveless basic top, high-end commercial style.
+  ▶ [男性切換] 若為男裝、男性用品、強烈陽剛屬性產品：A trendy Taiwanese man, age 21, modern street fashion, stylish haircut, cool urban vibe, wearing high-quality simple outfit, street photography commercial style.
+- 解剖學限制 (絕對強制，無論男女)：必須在人設後方緊接著寫入 "CRITICAL ANATOMY: Exactly ONE human, TWO arms, 5 fingers per hand"，嚴禁多肢或浮空手部。
 - 場景規範：將私密場景如 "Bedroom" 自動替換為 "Bright Living Room"。
 
 4) 音訊腳本 (Audio Spec)：
@@ -113,6 +113,7 @@ A stunning Taiwanese woman, age 21, celebrity model-level beauty, flawless natur
   1. 開場痛點與鉤子 (約 10-15 字)：配合 0-3s 畫面，精準點出痛點或驚喜感，快速抓眼球（例：「最近換季，狀態是不是超容易崩潰？」）。
   2. 核心亮點與體驗 (約 20-25 字)：配合 3-9s 畫面，嚴守法規，用朋友分享的口吻強調商品特色、質地或生活儀式感（例：「這款真的超有感！質地超水潤，輕輕一抹就吸收，出門準備超省時！」）。
   3. 行動呼籲 CTA (約 10-15 字)：配合 9-15s 畫面，語氣歡快具感染力，引導下一步動作（例：「現在買超划算，快點底下連結帶回家啦！」）。
+- 智能配音選擇：若為女性角色，使用「Female voiceover in Mandarin...」；若判斷為男性角色，切換為「Natural Taiwanese male voice, young adult tone, calm, confident...」。
 - 句型要求：必須精簡、清楚、好唸，絕對避免過長複句、過多規格堆疊、過多英文夾雜與拗口詞。
 - 錄音品質：優先確保發音穩定、語意清楚、節奏自然，讓口播能剛好無縫貼合 15 秒影片長度。
 
