@@ -168,7 +168,7 @@ async def generate_prompt(request: PromptRequest, token: str = Depends(verify_to
             f"嚴格遵循上述所有規範，生成最終的 SORA 提示詞與音訊腳本。"
         )
 
-        # 3. 呼叫 DEFAPI (相容 OpenAI 格式)
+# 3. 呼叫 DEFAPI (相容 OpenAI 格式) - 加入防彈重試機制
         logger.info("正在呼叫 DEFAPI (google/gemini-3-flash) 生成專業腳本...")
         defapi_url = "https://api.defapi.org/api/v1/chat/completions"
         
@@ -199,9 +199,26 @@ async def generate_prompt(request: PromptRequest, token: str = Depends(verify_to
             "temperature": 0.7
         }
 
-        api_response = requests.post(defapi_url, headers=headers, json=payload, timeout=60)
-        api_response.raise_for_status()
+        # 設定最大重試次數
+        max_retries = 3
+        api_response = None
         
+        import time # 確保開頭有 import time
+        for attempt in range(max_retries):
+            try:
+                api_response = requests.post(defapi_url, headers=headers, json=payload, timeout=60)
+                api_response.raise_for_status() # 如果是 200 就會順利往下走，如果是 500 就會跳到 except
+                break # 成功了！跳出重試迴圈
+                
+            except requests.exceptions.HTTPError as e:
+                # 如果是伺服器端錯誤 (500 開頭) 且還沒達到最大重試次數
+                if e.response.status_code >= 500 and attempt < max_retries - 1:
+                    logger.warning(f"⚠️ DEFAPI 伺服器不穩 (狀態碼: {e.response.status_code})，2 秒後進行第 {attempt + 2} 次重試...")
+                    time.sleep(2) # 喘口氣等 2 秒
+                    continue
+                else:
+                    raise # 如果不是 500 錯誤，或是重試 3 次都失敗，就真的報錯
+
         result_json = api_response.json()
         
         # 解析 OpenAI 格式的回傳內容
