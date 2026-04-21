@@ -132,7 +132,7 @@ SETTING ATMOSPHERE:
 PRODUCT FOCUS:
 VISUAL NARRATIVE TIMELINE:
 AUDIO SPECIFICATION:
-TECHNICAL REQUIREMENTS:（此區塊必須強制寫入以下防護參數："Photorealistic, cinematic style, 60fps, 15-second duration, clean commercial pacing, clear shot readability. CRITICAL: NO SUBTITLES, NO ON-SCREEN TEXT, NO WATERMARKS, NO UI ELEMENTS, NO SCREEN GRAPHICS."）
+TECHNICAL REQUIREMENTS:（此區塊必須強制寫入以下防護參數："Photorealistic cinematic style, professional commercial lighting with natural window light, smooth camera movements, 60fps quality. Vertical 9:16 aspect ratio, exactly 15 seconds duration. NO SUBTITLES, NO ON-SCREEN TEXT, NO WATERMARKS, NO UI ELEMENTS, NO SCREEN GRAPHICS. Bright warm color grading, high production value, lifestyle commercial aesthetic. No sexual content, no nudity, no medical claims, no medical settings, and no exaggerated healing effects. CRITICAL NEGATIVE CONSTRAINTS: Absolutely no extra limbs, no missing fingers, no deformed hands, no floating limbs, no disconnected arms. Hands must not melt into product. High-fidelity hand anatomy throughout entire video."）
 - 不輸出除了MAIN CHARACTER, SETTING ATMOSPHERE ,PRODUCT FOCUS ,PRODUCT FOCUS ,VISUAL NARRATIVE TIMELINE ,AUDIO SPECIFICATION ,TECHNICAL REQUIREMENTS 以外的內容。
 
 總體語氣：
